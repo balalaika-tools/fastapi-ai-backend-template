@@ -59,8 +59,8 @@ src/JustAbackEnd/
 ### 1. Clone and enter the repo
 
 ```bash
-git clone https://github.com/balalaika-tools/langraph-StockAgent.git
-cd langraph-StockAgent
+git clone https://github.com/balalaika-tools/fastapi-ai-backend-template.git
+cd fastapi-ai-backend-template
 ```
 
 ### 2. Create and edit `.env`
@@ -95,8 +95,8 @@ Build the image and run the container, **injecting your `.env` file** so the app
 ### 1. Prepare environment
 
 ```bash
-git clone https://github.com/balalaika-tools/langraph-StockAgent.git
-cd langraph-StockAgent
+git clone https://github.com/balalaika-tools/fastapi-ai-backend-template.git
+cd fastapi-ai-backend-template
 cp .env_example .env
 # Edit .env and add your API keys
 ```

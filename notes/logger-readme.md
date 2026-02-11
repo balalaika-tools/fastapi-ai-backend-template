@@ -28,7 +28,7 @@ APP_ENVIRONMENT=prod
 | Environment | Project Logger Level | Root Default | External Default |
 | ----------- | -------------------- | ------------ | ---------------- |
 | **dev**     | DEBUG                | off          | disable          |
-| **prod**    | WARNING              | replace      | propagate        |
+| **prod**    | TRACING (25)         | replace      | propagate        |
 
 ---
 
@@ -47,7 +47,8 @@ Ideal for clean development debugging.
 
 ### 🔹 PROD
 
-* Project logs: `WARNING` and above
+* Project logs: `TRACING` (25) and above (includes TRACING, WARNING, ERROR, CRITICAL)
+* Set `prod_level=logging.WARNING` to exclude TRACING
 * All third-party logs propagate to root
 * Root replaced with queue pipeline
 * Everything JSON formatted
@@ -119,23 +120,23 @@ Standard levels:
 ```
 DEBUG    = 10
 INFO     = 20
+TRACING  = 25  (custom — just below WARNING)
 WARNING  = 30
-TRACING  = 35  (custom)
 ERROR    = 40
 CRITICAL = 50
 ```
 
 ---
 
-# 🚨 Custom TRACING Level (35)
+# 🚨 Custom TRACING Level (25)
 
-Defined between WARNING (30) and ERROR (40).
+Defined between INFO (20) and WARNING (30) — just below WARNING.
 
 Purpose:
 
-* Visible in production (since prod level = WARNING)
-* More important than INFO
-* Less severe than ERROR
+* Visible in production by default (since `prod_level = TRACING = 25`)
+* Easily toggled off by setting `prod_level=logging.WARNING`
+* More important than INFO, less severe than WARNING
 * Easily searchable (`.tracing(`)
 
 ---
@@ -288,12 +289,12 @@ All visible.
 
 ---
 
-## In PROD (default WARNING)
+## In PROD (default TRACING)
 
 ```python
 log.debug("hidden")
 log.info("hidden")
-log.tracing("visible")
+log.tracing("visible")   # ✔ included (25 >= 25)
 log.warning("visible")
 log.error("visible")
 ```
@@ -307,18 +308,36 @@ ERROR
 CRITICAL
 ```
 
+## In PROD (with prod_level=WARNING)
+
+```python
+log.debug("hidden")
+log.info("hidden")
+log.tracing("hidden")    # ✘ filtered out (25 < 30)
+log.warning("visible")
+log.error("visible")
+```
+
+Only:
+
+```
+WARNING
+ERROR
+CRITICAL
+```
+
 ---
 
 # When to Use Each Level
 
-| Level    | Use Case                          |
-| -------- | --------------------------------- |
-| DEBUG    | Detailed internal state           |
-| INFO     | Normal business events            |
-| WARNING  | Unexpected but recoverable issues |
-| TRACING  | High-importance trace checkpoints |
-| ERROR    | Operation failed                  |
-| CRITICAL | System-level failure              |
+| Level    | Value | Use Case                                        |
+| -------- | ----- | ------------------------------------------------- |
+| DEBUG    | 10    | Detailed internal state                           |
+| INFO     | 20    | Normal business events                            |
+| TRACING  | 25    | High-importance trace checkpoints (toggle-able)   |
+| WARNING  | 30    | Unexpected but recoverable issues                 |
+| ERROR    | 40    | Operation failed                                  |
+| CRITICAL | 50    | System-level failure                              |
 
 ---
 

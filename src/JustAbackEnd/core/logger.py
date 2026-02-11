@@ -15,19 +15,19 @@ from typing import ClassVar, Optional, Union
 
 
 # ============================================================
-# Custom TRACING level  (between WARNING=30 and ERROR=40)
+# Custom TRACING level  (between INFO=20 and WARNING=30)
 # ============================================================
 
-TRACING = 35
+TRACING = 25
 logging.addLevelName(TRACING, "TRACING")
 
 
 def _tracing(self: logging.Logger, message, *args, **kwargs):
-    """Log a message at the TRACING level (numeric 35).
+    """Log a message at the TRACING level (numeric 25).
 
-    Use for high-visibility trace points that must survive production
-    log-level filtering (WARNING+).  Easily searchable for bulk
-    comment/uncomment via ``\\.tracing(`` or ``TRACING``.
+    Sits just below WARNING so it is included when ``prod_level=TRACING``
+    (the default) but filtered out when ``prod_level=WARNING``.
+    Easily searchable for bulk comment/uncomment via ``\\.tracing(``.
     """
     if self.isEnabledFor(TRACING):
         self._log(TRACING, message, args, **kwargs)
@@ -579,7 +579,7 @@ def configure_logging(
     queue_maxsize: Optional[int] = 10000,
     root_handler_mode: str = "auto",
     external_logger_mode: str = "auto",
-    prod_level: int = logging.WARNING,
+    prod_level: int = TRACING,
     webhook_url: Optional[str] = None,
     webhook_timeout: float = 5.0,
     webhook_level: int = logging.ERROR,
@@ -634,7 +634,8 @@ def configure_logging(
               Honoured in **any** environment.
         prod_level:
             Logging level for the project logger when
-            ``APP_ENVIRONMENT=prod``.  Defaults to ``WARNING``.
+            ``APP_ENVIRONMENT=prod``.  Defaults to ``TRACING`` (25).
+            Set to ``logging.WARNING`` to exclude TRACING records.
         webhook_url:
             URL to ``POST`` JSON-formatted records to.  ``None`` disables
             webhook delivery.  Delivery happens in a background thread and
@@ -657,15 +658,17 @@ def configure_logging(
     Environment variables:
         ``APP_ENVIRONMENT``:
             Set to ``"prod"`` for production behaviour (project logger at
-            *prod_level*, root logger captured, runtime fields in JSON).
+            *prod_level* which defaults to TRACING, root logger captured,
+            runtime fields in JSON).
             Any other value uses development defaults (``DEBUG`` level,
             external loggers silenced, no runtime fields in JSON).
 
     Custom level:
-        A ``TRACING`` level (numeric **35**, between WARNING and ERROR) is
+        A ``TRACING`` level (numeric **25**, just below WARNING=30) is
         registered at import time.  Use ``logger.tracing("msg")`` for
-        high-visibility trace points that survive production log-level
-        filtering.  All call-sites are easily searchable via
+        high-visibility trace points.  Included by default in prod
+        (``prod_level=TRACING``); set ``prod_level=logging.WARNING`` to
+        exclude them.  All call-sites are easily searchable via
         ``\\.tracing(`` for bulk comment/uncomment.
 
     Example::

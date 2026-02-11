@@ -1,0 +1,37 @@
+repos:
+  # -----------------------------------
+  # General file hygiene
+  # -----------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+
+  # -----------------------------------
+  # Ruff (linter + formatter)
+  # -----------------------------------
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.10
+    hooks:
+      - id: ruff-check
+        args: ["--fix"]
+      - id: ruff-format
+
+  # -----------------------------------
+  # Mypy (static type checking, local env)
+  # -----------------------------------
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: mypy src
+        language: system
+        types: [python]
+        pass_filenames: false
+        always_run: true

@@ -5,6 +5,7 @@ description = "Production-ready FastAPI backend template for AI applications"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.128.2",
+    "httptools>=0.7.1",
     "httpx>=0.28.1",
     "langchain>=1.2.9",
     "langchain-google-genai",
@@ -12,16 +13,91 @@ dependencies = [
     "pydantic>=2.12.5",
     "pydantic-settings>=2.12.0",
     "uvicorn>=0.40.0",
+    "uvloop>=0.22.1; sys_platform != 'win32'",
 ]
 
-
 [dependency-groups]
-dev = ["ipykernel>=6.30.1"]
+dev = [
+    "ipykernel>=6.30.1",
+    "mypy>=1.10.0",
+    "pre-commit>=4.5.1",
+    "pytest>=9.0.2",
+    "pytest-asyncio>=1.3.0",
+    "pytest-timeout>=2.4.0",
+    "ruff>=0.15.0",
+]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-
 [tool.hatch.build.targets.wheel]
 packages = ["src/JustAbackEnd"]
+
+# ---------------------------
+# RUFF
+# ---------------------------
+[tool.ruff]
+line-length = 88
+target-version = "py313"
+fix = true
+respect-gitignore = true
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "F",     # pyflakes
+    "W",     # pycodestyle warnings
+    "I",     # isort
+    "B",     # bugbear
+    "UP",    # pyupgrade
+    "C4",    # comprehensions
+    "SIM",   # simplifications
+    "T",     # print/debug statements
+    "ARG",   # unused arguments
+    "ERA",   # commented-out code
+    "ANN",   # type annotations
+    "D",     # docstrings
+    "S",     # bandit (security)
+    "ASYNC", # async best practices
+    "PTH",   # pathlib
+    "RUF",   # ruff-specific rules
+]
+ignore = [
+    "D107",  # no docstring for __init__
+    "E501",  # line length handled by formatter
+    "S104",  # possible binding to all interfaces (intentional in containers)
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.ruff.lint.isort]
+known-first-party = ["JustAbackEnd"]
+combine-as-imports = true
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+# ---------------------------
+# MYPY
+# ---------------------------
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_unused_configs = true
+warn_return_any = true
+warn_unused_ignores = true
+no_implicit_optional = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+
+# ---------------------------
+# PYTEST
+# ---------------------------
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+timeout = 60
+testpaths = ["tests"]

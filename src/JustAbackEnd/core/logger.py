@@ -15,6 +15,28 @@ from typing import ClassVar, Optional, Union
 
 
 # ============================================================
+# Custom TRACING level  (between WARNING=30 and ERROR=40)
+# ============================================================
+
+TRACING = 35
+logging.addLevelName(TRACING, "TRACING")
+
+
+def _tracing(self: logging.Logger, message, *args, **kwargs):
+    """Log a message at the TRACING level (numeric 35).
+
+    Use for high-visibility trace points that must survive production
+    log-level filtering (WARNING+).  Easily searchable for bulk
+    comment/uncomment via ``\\.tracing(`` or ``TRACING``.
+    """
+    if self.isEnabledFor(TRACING):
+        self._log(TRACING, message, args, **kwargs)
+
+
+logging.Logger.tracing = _tracing  # type: ignore[attr-defined]
+
+
+# ============================================================
 # Correlation ID context
 # ============================================================
 
@@ -422,7 +444,8 @@ def _setup_root_logger(
     if resolved == "auto":
         resolved = "replace" if is_prod else "off"
 
-    if not is_prod or resolved not in {"add", "replace"}:
+    # ("add", "replace", "off") are always respected regardless of env.
+    if resolved not in {"add", "replace"}:
         return
 
     root = logging.getLogger()
@@ -588,13 +611,14 @@ def configure_logging(
             **dropped** (non-blocking) and a warning is written to stderr.
             ``None`` or ``0`` means **unbounded**.  Defaults to ``10 000``.
         root_handler_mode:
-            How to treat the **root** logger in production:
+            How to treat the **root** logger:
 
             * ``"auto"`` (default) — ``"replace"`` in prod, ``"off"``
               otherwise.
             * ``"replace"`` — clear existing root handlers, attach queue
-              handler.
+              handler.  Honoured in **any** environment.
             * ``"add"`` — keep existing root handlers, append queue handler.
+              Honoured in **any** environment.
             * ``"off"`` — leave root untouched.
         external_logger_mode:
             Policy for third-party / framework loggers:
@@ -603,8 +627,11 @@ def configure_logging(
               through root → queue → your JSON format), ``"disable"``
               everywhere else (only your own ``gLogger.*`` logs appear).
             * ``"disable"`` — silence all non-project loggers.
+              Honoured in **any** environment.
             * ``"propagate"`` — force propagation to root.
+              Honoured in **any** environment.
             * ``"keep"`` — leave them as-is.
+              Honoured in **any** environment.
         prod_level:
             Logging level for the project logger when
             ``APP_ENVIRONMENT=prod``.  Defaults to ``WARNING``.
@@ -634,6 +661,13 @@ def configure_logging(
             Any other value uses development defaults (``DEBUG`` level,
             external loggers silenced, no runtime fields in JSON).
 
+    Custom level:
+        A ``TRACING`` level (numeric **35**, between WARNING and ERROR) is
+        registered at import time.  Use ``logger.tracing("msg")`` for
+        high-visibility trace points that survive production log-level
+        filtering.  All call-sites are easily searchable via
+        ``\\.tracing(`` for bulk comment/uncomment.
+
     Example::
 
         # application startup (per-worker log file)
@@ -642,6 +676,15 @@ def configure_logging(
         # in any module
         log = get_logger("gLogger." + __name__)
         log.info("request handled", extra={"user_id": 42})
+
+        # TRACING – visible in prod (level >= WARNING)
+        log.tracing("entered payment flow", extra={"order_id": 99})
+
+        # dev environment with 3rd-party logs visible:
+        logger = configure_logging(
+            root_handler_mode="replace",
+            external_logger_mode="propagate",
+        )
 
         # FastAPI lifespan shutdown
         shutdown_logging()

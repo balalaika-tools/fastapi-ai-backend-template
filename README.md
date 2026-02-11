@@ -88,6 +88,42 @@ App runs at **http://0.0.0.0:6757** with reload. Docs: http://0.0.0.0:6757/docs.
 
 ---
 
+## Pre-commit (lint & type-check)
+
+The project uses **pre-commit** to run checks before each commit: trailing whitespace, end-of-file fixer, YAML/TOML checks, **Ruff** (lint + format), and **mypy**. You must install the hooks once so that Git runs them automatically on `git commit`.
+
+### Install hooks (once)
+
+From the project root, with dependencies already installed (`uv sync`):
+
+```bash
+uv run pre-commit install
+```
+
+After this, every `git commit` will run the hooks. If a hook fails, the commit is aborted until you fix the reported issues.
+
+### Activate the venv before committing
+
+The mypy hook uses **`language: system`**, so it runs whatever `mypy` is on your **PATH**. To use the project’s mypy (and version) instead of the system one, **activate the venv before you commit**:
+
+```bash
+source .venv/bin/activate   # or: uv venv && source .venv/bin/activate if you haven’t created it yet
+pre-commit install         # once
+# ... when you’re ready to commit:
+git add .
+git commit -m "..."
+```
+
+With the venv active, you can also run all hooks manually:
+
+```bash
+pre-commit run --all-files
+```
+
+If you don’t activate the venv, pre-commit will use your system mypy, which may be a different version and can give different results.
+
+---
+
 ## Run with Docker (production-style)
 
 Build the image and run the container, **injecting your `.env` file** so the app gets `GEMINI_API_KEY` and other variables.

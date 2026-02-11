@@ -173,17 +173,3 @@ docker logs -f justabackend-app
 | POST   | `/api/v1/chat`    | Chat completion (body: `prompt`, optional `session_id`) |
 
 ---
-
-## Environment variables
-
-| Variable              | Required | Description                          |
-|-----------------------|----------|--------------------------------------|
-| `GEMINI_API_KEY`      | Yes      | Google Gemini API key                |
-| `LANGSMITH_TRACING`   | No       | `true` to enable LangSmith           |
-| `LANGSMITH_API_KEY`   | No       | LangSmith API key                    |
-| `LANGSMITH_PROJECT`   | No       | LangSmith project name (e.g. `stock-agent`) |
-| `MODEL_NAME`          | No       | e.g. `google_genai:gemini-2.5-flash` |
-| `TEMPERATURE`         | No       | Model temperature (default `0`)       |
-| `WEBHOOK_URL`         | No       | Optional URL for error log alerts    |
-
----

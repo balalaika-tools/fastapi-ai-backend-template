@@ -1,14 +1,17 @@
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
-from JustAbackEnd.utils.helpers import setup_logging
-from JustAbackEnd.core.logger import shutdown_logging
-from JustAbackEnd.core.settings import get_settings
-from JustAbackEnd.core.runtime import AppRuntime
+
 from JustAbackEnd.core.constants import LOGGER_NAME
+from JustAbackEnd.core.logger import shutdown_logging
+from JustAbackEnd.core.runtime import AppRuntime
+from JustAbackEnd.core.settings import get_settings
+from JustAbackEnd.utils.helpers import setup_logging
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     # Settings first: the logger.info("Settings loaded") inside get_settings()
     # is silently dropped (no handler configured yet). But logger.error() still
     # reaches stderr via Python's lastResort handler — startup failures are visible.

@@ -1,25 +1,42 @@
 from fastapi import FastAPI
-from fastapi.responses import ORJSONResponse
-from fastapi.exceptions import RequestValidationError, HTTPException
+from fastapi.exceptions import HTTPException, RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from JustAbackEnd.api.middleware import CorrelationIdMiddleware, RequestLoggingMiddleware
+from fastapi.responses import ORJSONResponse
+
+from JustAbackEnd.api.exceptions import (
+    general_exception_handler,
+    http_exception_handler,
+    validation_exception_handler,
+)
+from JustAbackEnd.api.middleware import (
+    CorrelationIdMiddleware,
+    RequestLoggingMiddleware,
+)
 from JustAbackEnd.api.routers.health import router as health_router
 from JustAbackEnd.api.routers.llm import router as llm_router
-from JustAbackEnd.core.logger import get_logger
-from JustAbackEnd.core.constants import TITLE, DESCRIPTION, API_VERSION, DOCS_URL, REDOC_URL, LOGGER_NAME
 from JustAbackEnd.bootstrap.lifespan import lifespan
-from JustAbackEnd.api.exceptions import (
-    validation_exception_handler,
-    http_exception_handler,
-    general_exception_handler,
+from JustAbackEnd.core.constants import (
+    API_VERSION,
+    DESCRIPTION,
+    DOCS_URL,
+    LOGGER_NAME,
+    REDOC_URL,
+    TITLE,
 )
+from JustAbackEnd.core.logger import get_logger
 
 logger = get_logger(f"{LOGGER_NAME}.{__name__}")
 
 
 def _setup_exception_handlers(app: FastAPI) -> None:
-    app.add_exception_handler(RequestValidationError, validation_exception_handler)
-    app.add_exception_handler(HTTPException, http_exception_handler)
+    app.add_exception_handler(
+        RequestValidationError,
+        validation_exception_handler,  # type: ignore[arg-type]
+    )
+    app.add_exception_handler(
+        HTTPException,
+        http_exception_handler,  # type: ignore[arg-type]
+    )
     app.add_exception_handler(Exception, general_exception_handler)
 
 

@@ -1,7 +1,8 @@
-from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any
 import uuid
 from datetime import datetime
+from typing import Any
+
+from pydantic import BaseModel, Field
 
 
 class ChatCompletionRequest(BaseModel):
@@ -20,10 +21,10 @@ class HealthResponse(BaseModel):
     version: str
     python_version: str
     platform: str
-    services: Dict[str, bool] = Field(default_factory=dict)
+    services: dict[str, bool] = Field(default_factory=dict)
 
 
 class ErrorResponse(BaseModel):
     error: str
     message: str
-    detail: Optional[Any] = None
+    detail: Any | None = None

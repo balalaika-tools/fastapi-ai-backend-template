@@ -113,7 +113,7 @@ docker build -t justabackend .
 docker run -p 8000:8000 --env-file .env justabackend
 ```
 
-- **`--env-file .env`** passes all variables from `.env` into the container (recommended for local/dev).  
+- **`--env-file .env`** passes all variables from `.env` into the container (recommended for local/dev).
 - For production, prefer secrets or your orchestrator’s env config instead of committing `.env`.
 
 App is available at **http://localhost:8000**. Docs: http://localhost:8000/docs.

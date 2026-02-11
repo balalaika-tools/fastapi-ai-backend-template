@@ -1,4 +1,5 @@
 import atexit
+import contextlib
 import json
 import logging
 import os
@@ -8,11 +9,11 @@ import threading
 import time
 from contextlib import contextmanager
 from contextvars import ContextVar
+from datetime import UTC
 from logging.handlers import QueueHandler, QueueListener, RotatingFileHandler
 from pathlib import Path
 from queue import Empty, Full, Queue
-from typing import ClassVar, Optional, Union
-
+from typing import Any, ClassVar
 
 # ============================================================
 # Custom TRACING level  (between INFO=20 and WARNING=30)
@@ -22,7 +23,7 @@ TRACING = 25
 logging.addLevelName(TRACING, "TRACING")
 
 
-def _tracing(self: logging.Logger, message, *args, **kwargs):
+def _tracing(self: logging.Logger, message: str, *args: Any, **kwargs: Any) -> None:
     """Log a message at the TRACING level (numeric 25).
 
     Sits just below WARNING so it is included when ``prod_level=TRACING``
@@ -40,6 +41,7 @@ logging.Logger.tracing = _tracing  # type: ignore[attr-defined]
 # Correlation ID context
 # ============================================================
 
+
 class CorrelationCtx:
     """Thread/task-safe correlation ID backed by a ``ContextVar``.
 
@@ -50,25 +52,23 @@ class CorrelationCtx:
             logger.info("handling request")
     """
 
-    _cid: ClassVar[ContextVar[Optional[str]]] = ContextVar(
-        "correlation_id", default=None
-    )
+    _cid: ClassVar[ContextVar[str | None]] = ContextVar("correlation_id", default=None)
 
     @classmethod
-    def get(cls) -> Optional[str]:
+    def get(cls) -> str | None:
         return cls._cid.get()
 
     @classmethod
-    def set(cls, cid: Optional[str]):
+    def set(cls, cid: str | None) -> Any:
         return cls._cid.set(cid)
 
     @classmethod
-    def reset(cls, token):
+    def reset(cls, token: Any) -> None:
         cls._cid.reset(token)
 
     @classmethod
     @contextmanager
-    def use(cls, cid: Optional[str]):
+    def use(cls, cid: str | None) -> Any:
         token = cls.set(cid)
         try:
             yield
@@ -93,40 +93,60 @@ class CorrelationIdFilter(logging.Filter):
 # JSON formatter
 # ============================================================
 
+
 class JsonFormatter(logging.Formatter):
     _MAX_SERIALIZE_DEPTH = 8
-    _STANDARD_KEYS = frozenset({
-        "name", "msg", "args", "created", "filename", "funcName",
-        "levelname", "levelno", "lineno", "module", "msecs",
-        "message", "pathname", "process", "processName",
-        "relativeCreated", "thread", "threadName",
-        "stack_info", "exc_info", "exc_text", "asctime",
-        "correlation_id",
-    })
+    _STANDARD_KEYS = frozenset(
+        {
+            "name",
+            "msg",
+            "args",
+            "created",
+            "filename",
+            "funcName",
+            "levelname",
+            "levelno",
+            "lineno",
+            "module",
+            "msecs",
+            "message",
+            "pathname",
+            "process",
+            "processName",
+            "relativeCreated",
+            "thread",
+            "threadName",
+            "stack_info",
+            "exc_info",
+            "exc_text",
+            "asctime",
+            "correlation_id",
+        }
+    )
 
     def __init__(
         self,
         *,
         include_runtime_fields: bool = True,
         max_value_length: int = 2000,
-    ):
+    ) -> None:
         super().__init__()
         self._include_runtime_fields = include_runtime_fields
         self._max_value_length = max(0, int(max_value_length))
         self._hostname = socket.gethostname()
 
-    def formatTime(self, record, datefmt=None):
-        from datetime import datetime, timezone
+    def formatTime(self, record: logging.LogRecord, datefmt: str | None = None) -> str:
+        from datetime import datetime
 
-        dt = datetime.fromtimestamp(record.created, tz=timezone.utc)
+        dt = datetime.fromtimestamp(record.created, tz=UTC)
         if datefmt:
             return dt.strftime(datefmt)
         return dt.isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
     # -- serialization helpers --------------------------------
 
-    def _make_json_serializable(self, obj):
-        from datetime import datetime, date
+    def _make_json_serializable(self, obj: Any) -> Any:
+        from datetime import date, datetime
         from uuid import UUID
 
         if isinstance(obj, UUID):
@@ -146,14 +166,11 @@ class JsonFormatter(logging.Formatter):
                 return repr(obj)
         return obj
 
-    def _serialize_value(self, value, _depth=0):
+    def _serialize_value(self, value: Any, _depth: int = 0) -> Any:
         if _depth >= self._MAX_SERIALIZE_DEPTH:
             return self._safe_str(value)
         if isinstance(value, dict):
-            return {
-                k: self._serialize_value(v, _depth + 1)
-                for k, v in value.items()
-            }
+            return {k: self._serialize_value(v, _depth + 1) for k, v in value.items()}
         if isinstance(value, (list, tuple)):
             return [self._serialize_value(v, _depth + 1) for v in value]
         return self._make_json_serializable(value)
@@ -165,7 +182,7 @@ class JsonFormatter(logging.Formatter):
             return value
         return value[: self._max_value_length] + "...(truncated)"
 
-    def _safe_str(self, value) -> str:
+    def _safe_str(self, value: Any) -> str:
         try:
             text = str(value)
         except Exception:
@@ -213,16 +230,18 @@ class JsonFormatter(logging.Formatter):
 # Queue handler (non-blocking drop)
 # ============================================================
 
+
 class DroppingQueueHandler(QueueHandler):
     """``QueueHandler`` that drops records instead of blocking when full."""
 
     _DROP_LOG_INTERVAL = 1000
+    _is_app_queue_handler: bool = False
 
-    def __init__(self, queue: Queue):
+    def __init__(self, queue: Queue[logging.LogRecord]) -> None:
         super().__init__(queue)
         self.dropped_count = 0
 
-    def enqueue(self, record):
+    def enqueue(self, record: logging.LogRecord) -> None:
         try:
             self.queue.put_nowait(record)
         except Full:
@@ -240,6 +259,7 @@ class DroppingQueueHandler(QueueHandler):
 # ============================================================
 # Webhook handler
 # ============================================================
+
 
 class WebhookHandler(logging.Handler):
     """Sends formatted log records to a webhook URL via a background thread.
@@ -261,14 +281,14 @@ class WebhookHandler(logging.Handler):
         timeout: float = 5.0,
         level: int = logging.ERROR,
         queue_size: int = 1000,
-    ):
+    ) -> None:
         super().__init__(level)
         import httpx  # fail-fast: verify httpx is installed
 
         self._httpx = httpx
         self._url = url
         self._timeout = timeout
-        self._send_queue: Queue[Optional[str]] = Queue(maxsize=queue_size)
+        self._send_queue: Queue[str | None] = Queue(maxsize=queue_size)
         self._stop_event = threading.Event()
         self._worker = threading.Thread(
             target=self._worker_loop,
@@ -305,18 +325,14 @@ class WebhookHandler(logging.Handler):
                         headers={"Content-Type": "application/json"},
                     )
                 except Exception as exc:
-                    sys.stderr.write(
-                        f"[logging] Webhook send failed: {exc}\n"
-                    )
+                    sys.stderr.write(f"[logging] Webhook send failed: {exc}\n")
         finally:
             client.close()
 
     def close(self) -> None:
         self._stop_event.set()
-        try:
+        with contextlib.suppress(Full):
             self._send_queue.put(self._SENTINEL, timeout=5)
-        except Full:
-            pass  # stop_event will cause worker to exit after draining
         self._worker.join(timeout=10)
         super().close()
 
@@ -329,18 +345,14 @@ _active_listeners: dict[str, QueueListener] = {}
 _atexit_registered = False
 
 
-def _stop_and_close_listener(listener: Optional[QueueListener]) -> None:
+def _stop_and_close_listener(listener: QueueListener | None) -> None:
     if not listener:
         return
-    try:
+    with contextlib.suppress(Exception):
         listener.stop()
-    except Exception:
-        pass
     for handler in getattr(listener, "handlers", ()):
-        try:
+        with contextlib.suppress(Exception):
             handler.close()
-        except Exception:
-            pass
 
 
 def _atexit_shutdown_all() -> None:
@@ -363,6 +375,7 @@ def shutdown_logging(logger_name: str = "gLogger") -> None:
 # ============================================================
 # Internal helpers
 # ============================================================
+
 
 def _is_project_logger(logger_name: str, name: str) -> bool:
     return name == logger_name or name.startswith(f"{logger_name}.")
@@ -395,13 +408,13 @@ def _configure_external_loggers(
 
 
 def _create_queue_handler(
-    queue_maxsize: Optional[int],
-) -> tuple[Queue, DroppingQueueHandler]:
+    queue_maxsize: int | None,
+) -> tuple[Queue[logging.LogRecord], DroppingQueueHandler]:
     # None / 0 -> unbounded (Queue(maxsize=0) is unbounded by design)
     queue_size = 0 if queue_maxsize is None else int(queue_maxsize)
     if queue_size < 0:
         queue_size = 0
-    log_queue = Queue(maxsize=queue_size)
+    log_queue: Queue[logging.LogRecord] = Queue(maxsize=queue_size)
     handler = DroppingQueueHandler(log_queue)
     handler._is_app_queue_handler = True
     handler.addFilter(CorrelationIdFilter())
@@ -459,7 +472,7 @@ def _setup_root_logger(
     root.addHandler(queue_handler)
 
 
-def _resolve_log_path(log_filepath: Union[str, Path]) -> Path:
+def _resolve_log_path(log_filepath: str | Path) -> Path:
     """Expand placeholders in a log file path.
 
     Supported placeholders:
@@ -480,10 +493,10 @@ def _resolve_log_path(log_filepath: Union[str, Path]) -> Path:
 def _build_output_handlers(
     *,
     console_output: bool,
-    log_filepath: Optional[Union[str, Path]],
+    log_filepath: str | Path | None,
     max_file_size: int,
     backup_count: int,
-    webhook_url: Optional[str],
+    webhook_url: str | None,
     webhook_timeout: float,
     webhook_level: int,
     webhook_queue_size: int,
@@ -536,7 +549,7 @@ def _create_formatter(
 
 def _start_queue_listener(
     *,
-    log_queue: Queue,
+    log_queue: Queue[logging.LogRecord],
     handlers: list[logging.Handler],
     logger_name: str,
 ) -> QueueListener:
@@ -569,18 +582,19 @@ def _apply_external_logger_policy(
 #  Public Functions                                                  #
 # ------------------------------------------------------------------ #
 
+
 def configure_logging(
     *,
-    log_filepath: Optional[Union[str, Path]] = None,
+    log_filepath: str | Path | None = None,
     max_file_size: int = 10 * 1024 * 1024,
     backup_count: int = 5,
     console_output: bool = True,
     json_output: bool = True,
-    queue_maxsize: Optional[int] = 10000,
+    queue_maxsize: int | None = 10000,
     root_handler_mode: str = "auto",
     external_logger_mode: str = "auto",
     prod_level: int = TRACING,
-    webhook_url: Optional[str] = None,
+    webhook_url: str | None = None,
     webhook_timeout: float = 5.0,
     webhook_level: int = logging.ERROR,
     webhook_queue_size: int = 1000,
@@ -680,7 +694,7 @@ def configure_logging(
         log = get_logger("gLogger." + __name__)
         log.info("request handled", extra={"user_id": 42})
 
-        # TRACING – visible in prod (level >= WARNING)
+        # TRACING - visible in prod (level >= WARNING)
         log.tracing("entered payment flow", extra={"order_id": 99})
 
         # dev environment with 3rd-party logs visible:
@@ -713,7 +727,7 @@ def configure_logging(
     1) Configure after the framework:
         - call `configure_logging()` in app startup/lifespan (or equivalent).
 
-    2) Disable the framework’s logging config when possible:
+    2) Disable the framework's logging config when possible:
         - uvicorn programmatic: `uvicorn.run(..., log_config=None)`
         - celery: override/disable its logging setup (e.g. via signals/config).
 

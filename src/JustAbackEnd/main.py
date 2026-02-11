@@ -1,11 +1,15 @@
 import uvicorn
-from JustAbackEnd.core.constants import HOST, LOCAL_DEV_PORT
-from JustAbackEnd.bootstrap.app_factory import create_app
+from fastapi import FastAPI
 
-def run_app():
+from JustAbackEnd.bootstrap.app_factory import create_app
+from JustAbackEnd.core.constants import HOST, LOCAL_DEV_PORT
+
+
+def run_app() -> FastAPI:
     return create_app()
 
-def run_app_locally():
+
+def run_app_locally() -> None:
     uvicorn.run(
         "JustAbackEnd.bootstrap.app_factory:create_app",
         host=HOST,

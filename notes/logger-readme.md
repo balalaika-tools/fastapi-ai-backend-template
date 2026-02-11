@@ -88,9 +88,9 @@ Result:
 3rd-party → root → queue → JSON formatter
 ```
 
-✔ All logs structured  
-✔ No mixed formats  
-✔ Correlation IDs preserved  
+✔ All logs structured
+✔ No mixed formats
+✔ Correlation IDs preserved
 
 ---
 
@@ -149,10 +149,10 @@ log = get_logger("gLogger.payment")
 log.tracing("Entered payment flow", extra={"order_id": 123})
 ```
 
-In production:  
-✔ Visible  
-✔ JSON formatted  
-✔ Searchable marker  
+In production:
+✔ Visible
+✔ JSON formatted
+✔ Searchable marker
 
 ---
 
@@ -369,6 +369,3 @@ This logger provides:
 * Custom TRACING level
 * Flexible root/external control
 * Fully non-blocking pipeline
-
-
-

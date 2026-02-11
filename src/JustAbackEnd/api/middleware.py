@@ -1,9 +1,12 @@
 import time
 import uuid
+from typing import Any, cast
+
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Receive, Scope, Send
+
+from JustAbackEnd.core.constants import CORRELATION_ID_HEADER, LOGGER_NAME
 from JustAbackEnd.core.logger import CorrelationCtx, get_logger
-from JustAbackEnd.core.constants import LOGGER_NAME, CORRELATION_ID_HEADER
 
 logger = get_logger(f"{LOGGER_NAME}.{__name__}")
 
@@ -11,10 +14,10 @@ logger = get_logger(f"{LOGGER_NAME}.{__name__}")
 class CorrelationIdMiddleware:
     # Pure ASGI middleware — avoids BaseHTTPMiddleware overhead and streaming issues.
 
-    def __init__(self, app: ASGIApp):
+    def __init__(self, app: ASGIApp) -> None:
         self.app = app
 
-    async def __call__(self, scope: Scope, receive: Receive, send: Send):
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] not in ("http", "websocket"):
             await self.app(scope, receive, send)
             return
@@ -22,14 +25,14 @@ class CorrelationIdMiddleware:
         correlation_id = _extract_or_generate_id(scope)
         token = CorrelationCtx.set(correlation_id)
 
-        async def send_with_id(message):
+        async def send_with_id(message: dict[str, Any]) -> None:
             if message["type"] == "http.response.start":
                 headers = MutableHeaders(scope=message)
                 headers.append(CORRELATION_ID_HEADER, correlation_id)
             await send(message)
 
         try:
-            await self.app(scope, receive, send_with_id)
+            await self.app(scope, receive, cast(Send, send_with_id))
         finally:
             CorrelationCtx.reset(token)
 
@@ -37,10 +40,10 @@ class CorrelationIdMiddleware:
 class RequestLoggingMiddleware:
     # Pure ASGI middleware for request/response logging.
 
-    def __init__(self, app: ASGIApp):
+    def __init__(self, app: ASGIApp) -> None:
         self.app = app
 
-    async def __call__(self, scope: Scope, receive: Receive, send: Send):
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
@@ -58,14 +61,14 @@ class RequestLoggingMiddleware:
 
         status_code = 0
 
-        async def send_with_logging(message):
+        async def send_with_logging(message: dict[str, Any]) -> None:
             nonlocal status_code
             if message["type"] == "http.response.start":
                 status_code = message.get("status", 0)
             await send(message)
 
         try:
-            await self.app(scope, receive, send_with_logging)
+            await self.app(scope, receive, cast(Send, send_with_logging))
         finally:
             duration_ms = round((time.perf_counter() - start) * 1000, 1)
             icon = "✅" if 0 < status_code < 400 else "⚠️"
@@ -85,5 +88,5 @@ def _extract_or_generate_id(scope: Scope) -> str:
     header_key = CORRELATION_ID_HEADER.lower().encode()
     for key, value in scope.get("headers", []):
         if key == header_key:
-            return value.decode()
+            return cast(str, value.decode("utf-8"))
     return str(uuid.uuid4())

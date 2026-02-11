@@ -55,9 +55,9 @@ select = [
     "SIM",   # simplifications
     "T",     # print/debug statements
     "ARG",   # unused arguments
-    "ERA",   # commented-out code
+    #"ERA",   # commented-out code
     "ANN",   # type annotations
-    "D",     # docstrings
+    #"D",     # docstrings
     "S",     # bandit (security)
     "ASYNC", # async best practices
     "PTH",   # pathlib
@@ -67,6 +67,8 @@ ignore = [
     "D107",  # no docstring for __init__
     "E501",  # line length handled by formatter
     "S104",  # possible binding to all interfaces (intentional in containers)
+    "S101",  # allow assert statements
+    "ANN401",  # Any needed for logging/ContextVar/serialization in logger
 ]
 
 [tool.ruff.format]

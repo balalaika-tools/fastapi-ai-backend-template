@@ -1,9 +1,9 @@
-from typing import Optional
 from langchain_core.language_models import BaseChatModel
-from JustAbackEnd.core.settings import Settings
+
 from JustAbackEnd.ai_engine.model import initialize_model
-from JustAbackEnd.core.logger import get_logger
 from JustAbackEnd.core.constants import LOGGER_NAME
+from JustAbackEnd.core.logger import get_logger
+from JustAbackEnd.core.settings import Settings
 
 logger = get_logger(f"{LOGGER_NAME}.{__name__}")
 
@@ -17,9 +17,9 @@ class AppRuntime:
     #   - Redis clients
     #   - Any client that holds open connections
 
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self._model: Optional[BaseChatModel] = None
+        self._model: BaseChatModel | None = None
         # Template: Add more service fields here
         # self._http_client: Optional[httpx.AsyncClient] = None
         # self._db_pool = None

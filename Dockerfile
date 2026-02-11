@@ -14,7 +14,7 @@ ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy
 
 # Copy dependency files
-COPY pyproject.toml uv.lock ./ 
+COPY pyproject.toml uv.lock ./
 
 # Install dependencies (cached layer)
 RUN --mount=type=cache,target=/root/.cache/uv \

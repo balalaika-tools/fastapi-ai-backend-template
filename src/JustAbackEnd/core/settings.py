@@ -1,20 +1,20 @@
 from functools import lru_cache
-from pydantic import Field, SecretStr, HttpUrl
+
+from pydantic import Field, HttpUrl, SecretStr
 from pydantic_settings import BaseSettings
-from typing import Optional
-from JustAbackEnd.core.logger import get_logger
+
 from JustAbackEnd.core.constants import LOGGER_NAME
+from JustAbackEnd.core.logger import get_logger
 
 logger = get_logger(f"{LOGGER_NAME}.{__name__}")
 
 
 class Settings(BaseSettings):
-
     # ============================================================
     # API Keys
     # ============================================================
     gemini_api_key: SecretStr = Field(..., alias="GEMINI_API_KEY")
-    langsmith_api_key: Optional[SecretStr] = Field(default=None, alias="LANGSMITH_API_KEY")
+    langsmith_api_key: SecretStr | None = Field(default=None, alias="LANGSMITH_API_KEY")
 
     # ============================================================
     # LangSmith Configuration
@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     # ============================================================
     # Webhook Configuration
     # ============================================================
-    webhook_url: Optional[HttpUrl] = Field(default=None, alias="WEBHOOK_URL")
+    webhook_url: HttpUrl | None = Field(default=None, alias="WEBHOOK_URL")
 
     model_config = {
         "env_file": ".env",
@@ -44,7 +44,7 @@ class Settings(BaseSettings):
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     try:
-        return Settings()
+        return Settings()  # type: ignore[call-arg]
     except Exception as e:
         logger.error(f"❌ Failed to load settings: {e}")
         raise

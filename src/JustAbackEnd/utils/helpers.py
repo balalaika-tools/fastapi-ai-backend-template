@@ -1,14 +1,24 @@
+import logging
+
 from JustAbackEnd.core.constants import (
-    LOGGER_NAME, LOG_FILEPATH, MAX_FILE_SIZE, BACKUP_COUNT,
-    CONSOLE_OUTPUT, JSON_OUTPUT, QUEUE_MAXSIZE, ROOT_HANDLER_MODE,
-    EXTERNAL_LOGGER_MODE, PROD_LEVEL, WEBHOOK_TIMEOUT,
-    WEBHOOK_LEVEL, WEBHOOK_QUEUE_SIZE,
+    BACKUP_COUNT,
+    CONSOLE_OUTPUT,
+    EXTERNAL_LOGGER_MODE,
+    JSON_OUTPUT,
+    LOG_FILEPATH,
+    LOGGER_NAME,
+    MAX_FILE_SIZE,
+    PROD_LEVEL,
+    QUEUE_MAXSIZE,
+    ROOT_HANDLER_MODE,
+    WEBHOOK_LEVEL,
+    WEBHOOK_QUEUE_SIZE,
+    WEBHOOK_TIMEOUT,
 )
 from JustAbackEnd.core.logger import configure_logging
-from typing import Optional
 
 
-def setup_logging(webhook_url: Optional[str]):
+def setup_logging(webhook_url: str | None) -> logging.Logger:
     return configure_logging(
         logger_name=LOGGER_NAME,
         log_filepath=LOG_FILEPATH,

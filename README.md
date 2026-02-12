@@ -146,10 +146,17 @@ docker build -t justabackend .
 ### 3. Run the container with `.env` injected
 
 ```bash
-docker run -p 8000:8000 --env-file .env justabackend
+docker run \
+  --log-driver json-file \
+  --log-opt max-size=10m \
+  --log-opt max-file=3 \
+  -p 8000:8000 \
+  --env-file .env \
+  justabackend
 ```
 
 - **`--env-file .env`** passes all variables from `.env` into the container (recommended for local/dev).
+- **`--log-driver json-file`** with `max-size` and `max-file` enables circular log rotation (prevents unbounded disk usage).
 - For production, prefer secrets or your orchestrator’s env config instead of committing `.env`.
 
 App is available at **http://localhost:8000**. Docs: http://localhost:8000/docs.
@@ -157,7 +164,14 @@ App is available at **http://localhost:8000**. Docs: http://localhost:8000/docs.
 ### Optional: name the container and run in background
 
 ```bash
-docker run -d -p 8000:8000 --name justabackend-app --env-file .env justabackend
+docker run -d \
+  --log-driver json-file \
+  --log-opt max-size=10m \
+  --log-opt max-file=3 \
+  -p 8000:8000 \
+  --name justabackend-app \
+  --env-file .env \
+  justabackend
 docker logs -f justabackend-app
 ```
 

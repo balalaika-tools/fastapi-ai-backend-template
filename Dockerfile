@@ -1,50 +1,49 @@
 FROM python:3.13-slim-bookworm AS base
 WORKDIR /app
 
-############################
-# Builder: Install dependencies with uv
-############################
-FROM base AS builder
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates tini \
+ && rm -rf /var/lib/apt/lists/*
 
-# Copy uv binary into builder
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+############################
+# Builder (uv pre-installed)
+############################
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS builder
+WORKDIR /app
 
-# Set uv config for stability
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy
 
-# Copy dependency files
 COPY pyproject.toml uv.lock ./
 
-# Install dependencies (cached layer)
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-install-project --no-dev
 
-# Copy code and optional index
 COPY src/ ./src/
 
-
-# Install your app into the venv
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
 ############################
-# Runner: Clean, minimal image
+# Runner
 ############################
 FROM base AS runner
 
-# Copy only the built app and venv
 COPY --from=builder /app /app
-ENV PATH="/app/.venv/bin:$PATH"
 
-# Create group/user WITH home dir and set HOME
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    HOME=/home/app
+
 RUN groupadd -r app \
  && useradd -m -r -g app -d /home/app app \
  && chown -R app:app /home/app /app
-ENV HOME=/home/app
 
 USER app
 EXPOSE 8000
 
-# Default command
-CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "-w", "1", "-b", "0.0.0.0:8000", "--access-logfile", "-", "JustAbackEnd.main:run_app"]
+
+ENTRYPOINT ["tini", "--"]
+
+CMD ["uvicorn", "JustAbackEnd.bootstrap.app_factory:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]

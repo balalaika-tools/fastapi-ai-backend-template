@@ -256,87 +256,6 @@ class DroppingQueueHandler(QueueHandler):
 
 
 # ============================================================
-# Webhook handler
-# ============================================================
-
-
-class WebhookHandler(logging.Handler):
-    """Sends formatted log records to a webhook URL via a background thread.
-
-    Records are queued non-blocking in :meth:`emit` and delivered by a
-    dedicated worker thread using a synchronous HTTP client, so neither
-    the calling thread nor any ``asyncio`` event loop is ever blocked by
-    network I/O.
-
-    Requires the ``httpx`` package (imported lazily on first use).
-    """
-
-    _SENTINEL = None
-
-    def __init__(
-        self,
-        url: str,
-        *,
-        timeout: float = 5.0,
-        level: int = logging.ERROR,
-        queue_size: int = 1000,
-    ) -> None:
-        super().__init__(level)
-        import httpx  # fail-fast: verify httpx is installed
-
-        self._httpx = httpx
-        self._url = url
-        self._timeout = timeout
-        self._send_queue: Queue[str | None] = Queue(maxsize=queue_size)
-        self._stop_event = threading.Event()
-        self._worker = threading.Thread(
-            target=self._worker_loop,
-            name="webhook-log-worker",
-            daemon=True,
-        )
-        self._worker.start()
-
-    def emit(self, record: logging.LogRecord) -> None:
-        try:
-            msg = self.format(record)
-            self._send_queue.put_nowait(msg)
-        except Full:
-            sys.stderr.write("[logging] Webhook queue full — dropping record\n")
-        except Exception:
-            self.handleError(record)
-
-    def _worker_loop(self) -> None:
-        client = self._httpx.Client(timeout=self._timeout)
-        try:
-            while True:
-                try:
-                    msg = self._send_queue.get(timeout=0.5)
-                except Empty:
-                    if self._stop_event.is_set():
-                        break
-                    continue
-                if msg is self._SENTINEL:
-                    break
-                try:
-                    client.post(
-                        self._url,
-                        content=msg,
-                        headers={"Content-Type": "application/json"},
-                    )
-                except Exception as exc:
-                    sys.stderr.write(f"[logging] Webhook send failed: {exc}\n")
-        finally:
-            client.close()
-
-    def close(self) -> None:
-        self._stop_event.set()
-        with contextlib.suppress(Full):
-            self._send_queue.put(self._SENTINEL, timeout=5)
-        self._worker.join(timeout=10)
-        super().close()
-
-
-# ============================================================
 # Listener lifecycle
 # ============================================================
 
@@ -489,10 +408,6 @@ def _build_output_handlers(
     log_to_file: bool,
     log_filepath: str | Path,
     max_file_size: int,
-    webhook_url: str | None,
-    webhook_timeout: float,
-    webhook_level: int,
-    webhook_queue_size: int,
 ) -> list[logging.Handler]:
     handlers: list[logging.Handler] = []
 
@@ -505,16 +420,6 @@ def _build_output_handlers(
         _truncate_if_oversized(resolved, max_file_size)
         handlers.append(
             logging.FileHandler(resolved, encoding="utf-8")
-        )
-
-    if webhook_url:
-        handlers.append(
-            WebhookHandler(
-                webhook_url,
-                timeout=webhook_timeout,
-                level=webhook_level,
-                queue_size=webhook_queue_size,
-            )
         )
 
     return handlers
@@ -576,10 +481,6 @@ def configure_logging(
     json_output: bool = True,
     queue_maxsize: int | None = 10000,
     prod_level: int = TRACING,
-    webhook_url: str | None = None,
-    webhook_timeout: float = 5.0,
-    webhook_level: int = logging.ERROR,
-    webhook_queue_size: int = 1000,
     logger_name: str = "gLogger",
 ) -> logging.Logger:
     """Configure centralised, structured logging with queue-based async delivery.
@@ -627,22 +528,6 @@ def configure_logging(
             Logging level for the project logger when
             ``APP_ENVIRONMENT=prod``.  Defaults to ``TRACING`` (25).
             Set to ``logging.WARNING`` to exclude TRACING records in prod.
-
-        webhook_url:
-            URL to ``POST`` JSON-formatted records to.  ``None`` disables
-            webhook delivery.  Delivery happens in a background thread and
-            **never blocks** the caller or the event loop.  Requires the
-            ``httpx`` package.
-
-        webhook_timeout:
-            HTTP timeout (seconds) for webhook requests.  Defaults to ``5.0``.
-
-        webhook_level:
-            Minimum level for records forwarded to the webhook.
-            Defaults to ``ERROR``.
-
-        webhook_queue_size:
-            Capacity of the webhook delivery queue.  Defaults to ``1000``.
 
         logger_name:
             Name of the project logger.  Defaults to ``"gLogger"``.
@@ -735,10 +620,6 @@ def configure_logging(
         log_to_file=log_to_file,
         log_filepath=log_filepath,
         max_file_size=max_file_size,
-        webhook_url=webhook_url,
-        webhook_timeout=webhook_timeout,
-        webhook_level=webhook_level,
-        webhook_queue_size=webhook_queue_size,
     )
 
     formatter = _create_formatter(json_output=json_output, is_dev=is_dev)

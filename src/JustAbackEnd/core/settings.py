@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import Field, HttpUrl, SecretStr
 from pydantic_settings import BaseSettings
@@ -8,8 +9,15 @@ from JustAbackEnd.core.logger import get_logger
 
 logger = get_logger(f"{LOGGER_NAME}.{__name__}")
 
+AppEnvironment = Literal["local", "dev", "stage", "prod"]
+
 
 class Settings(BaseSettings):
+    # ============================================================
+    # App environment (local | dev | stage | prod)
+    # ============================================================
+    app_environment: AppEnvironment = Field(default="local", alias="APP_ENVIRONMENT")
+
     # ============================================================
     # API Keys
     # ============================================================

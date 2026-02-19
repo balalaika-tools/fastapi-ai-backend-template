@@ -16,7 +16,12 @@ from JustAbackEnd.core.constants import (
 from JustAbackEnd.core.logger import configure_logging
 
 # configure_logging expects external_loggers in ("disable", "capture", "keep")
-_EXTERNAL_LOGGERS_MAP = {"auto": "disable", "disable": "disable", "capture": "capture", "keep": "keep"}
+_EXTERNAL_LOGGERS_MAP = {
+    "auto": "disable",
+    "disable": "disable",
+    "capture": "capture",
+    "keep": "keep",
+}
 
 
 def setup_logging(webhook_url: str | None) -> logging.Logger:

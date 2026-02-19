@@ -5,14 +5,13 @@ import logging
 import os
 import socket
 import sys
-import threading
 import time
 from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import UTC, datetime
 from logging.handlers import QueueHandler, QueueListener
 from pathlib import Path
-from queue import Empty, Full, Queue
+from queue import Full, Queue
 from typing import Any, ClassVar
 
 # ============================================================
@@ -418,9 +417,7 @@ def _build_output_handlers(
         resolved = _resolve_log_path(log_filepath)
         resolved.parent.mkdir(parents=True, exist_ok=True)
         _truncate_if_oversized(resolved, max_file_size)
-        handlers.append(
-            logging.FileHandler(resolved, encoding="utf-8")
-        )
+        handlers.append(logging.FileHandler(resolved, encoding="utf-8"))
 
     return handlers
 

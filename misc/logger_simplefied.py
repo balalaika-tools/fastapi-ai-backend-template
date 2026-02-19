@@ -11,7 +11,6 @@ from queue import Full, Queue
 from typing import Any
 from uuid import UUID
 
-
 # ============================================================
 # Custom TRACING level  (between INFO=20 and WARNING=30)
 # ============================================================
@@ -37,7 +36,6 @@ logging.Logger.tracing = _tracing  # type: ignore[attr-defined]
 # JSON formatter
 # ============================================================
 class JsonFormatter(logging.Formatter):
-
     _MAX_SERIALIZE_DEPTH = 8
     _STANDARD_KEYS = frozenset(
         {
@@ -319,9 +317,7 @@ def _build_output_handlers(
         resolved = _resolve_log_path(log_filepath)
         resolved.parent.mkdir(parents=True, exist_ok=True)
         _truncate_if_oversized(resolved, max_file_size)
-        handlers.append(
-            logging.FileHandler(resolved, encoding="utf-8")
-        )
+        handlers.append(logging.FileHandler(resolved, encoding="utf-8"))
     return handlers
 
 

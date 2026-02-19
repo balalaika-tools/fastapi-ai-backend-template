@@ -22,14 +22,14 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY src/ ./src/
 
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev
+    uv sync --frozen --no-dev --no-editable
 
 ############################
 # Runner
 ############################
 FROM base AS runner
 
-COPY --from=builder /app /app
+COPY --from=builder /app/.venv /app/.venv
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \
